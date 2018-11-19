@@ -1,15 +1,9 @@
 # Coupon_Redemption_Prediction_for_AirKitchen-Alias-
 
-SI699 Project
-Take the Bait: Predicting Coupon Redemption on a Sharing Economy Site
 
 ## Getting Started
-This readme provides detailed instructions on how to use data, extract features, train models, and evaluate the system.
+This readme provides detailed instructions on how to extract features, train models, and evaluate the system.
  
-## Dataset
-Folder: ./Dataset/
-The data is preprocessed by FeatureEngineering.ipynb and used in ModelSelection.ipynb under the folder Code. 
-
 ## Prerequisites
  In order to run the system, you will need the following packages:
  * Python 3 or Python 2 
@@ -28,7 +22,7 @@ Secondly, we used FeatureEngineering.ipynb to finalize the dataset. In this step
 ## Model Selection
 ### Linear Models
 #### Parameter Tuning
-ModelSelection_LR and ModelSelection_SVM (.py and .ipynb version)  are the linear models that we tried. We tuned a series hyper parameters including:
+LinearModel_ParamTuning_LR and LinearModel_ParamTuning_SVM (.py and .ipynb version) are the linear models that we tried. We tuned a series hyper parameters including:
 SCALER = [MinMaxScaler(), StandardScaler(), MaxAbsScaler(), RobustScaler]
 CLASS_WEIGHT = [{1:1}, {1:2}, {1:3}]  # BALANCE = [1, 2, 3]
 
@@ -40,10 +34,10 @@ For SVM, we further tuned:
 C = [0.01, 0.1, 1, 10, 100]
 G = [0.01, 0.1, 1, 10]
 
-After using FeatureSelection_LR.py, FeatureSelection_SVM.py file saving the evaluation scores using different parameters for 4-fold cross validations, we used FeatureSelection_LR.ipynb, FeatureSelection_SVM.ipynb to plot the tuning results and use the best parameter to do the final prediction on the testset.
+After using LinearModel_ParamTuning_LR.py, LinearModel_ParamTuning_SVM.py file saving the evaluation scores using different parameters for 4-fold cross validations, we used LinearModel_FeatureSelection_LR.ipynb, LinearModel_FeatureSelection_SVM.ipynb to plot the tuning results and use the best parameter to do the final prediction on the testset.
 
 #### Feature Selection
-Since SVM does not outperform Logistic Regression, we focused on using Logistic Regression for further analysis. We used ModelSelection_LassoLarsIC.ipynb for L0 norm feature selection, and ModelSelection_LinearRFE.ipynb for RFE feature selection. 
+Since SVM does not outperform Logistic Regression, we focused on using Logistic Regression for further analysis. We used LinearModel_FeatureSelection_LassoLarsIC.ipynb for L0 norm feature selection, and LinearModel_FeatureSelection_LinearRFE.ipynb for RFE feature selection. 
 
 ##### Error Analysis
 We used ModelSelection_LinearModel_ReducedFeatures.ipynb to do error analysis. More specifically, we grouped the features into different class, and drop each class to see the difference in the evaluation score.
@@ -67,6 +61,7 @@ MAX_DEPTH = [4, 6, 8]
 LEARNING_RATE = [0.05, 0.1, 0.15, 0.2]
 
 We also record the feature importance for each model iteration and saved into a csv file for feature importance analysis. 
+
 ### Feature/Error Analysis
 After we identify Gradient Boosting to be the best model, we grouped features into three main categories: coupon_based, user_based, and RFM. Dropping one set of features at a time, the feature set that drops AUC score the most is coupon_based features. To further analyze the individual features in the coupon_based feature set, we also loop through the list of coupon_based features (from most important to least importance, according to feature importance) and drops one at a time to assess how important each individual feature is. 
 
