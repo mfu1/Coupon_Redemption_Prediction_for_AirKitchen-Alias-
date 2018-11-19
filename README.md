@@ -1,7 +1,5 @@
 # Coupon_Redemption_Prediction_for_AirKitchen-Alias-
 
-
-## Getting Started
 This readme provides detailed instructions on how to extract features, train models, and evaluate the system.
  
 ## Prerequisites
