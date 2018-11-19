@@ -1,0 +1,165 @@
+---
+title: "preprocessing"
+author: "Mei Fu"
+date: "2/5/2018"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(dplyr)
+library(scales)
+library(igraph)
+library(plotly)
+library(shiny)
+library(data.table)
+options(encoding = "utf-8")
+```
+
+## 1. Import Data
+```{r}
+userInfo = data.table(read_csv("~/Desktop/SI 699/dataset_raw/Phoebe-Mei_userInfo_New.csv"))
+
+userInfoCleaned = copy(userInfo)
+userInfoCleaned[userInfoCleaned$city_id == 0]$city_id_user = NA
+userInfoCleaned[, c("X1", "occupation", "invite_id", "invite_code", "login_platform", "last_login", "app_version", "create_time") := NULL]
+names(userInfoCleaned)[1] = "user_id"
+names(userInfoCleaned)[2] = "city_id_user"
+
+userInfoCleaned = userInfoCleaned[,c("user_id", "sex", "age", "city_id_user")]
+
+summary(userInfoCleaned)
+```
+
+
+```{r}
+# load
+coupon <- read_csv("~/Desktop/SI 699/dataset_raw/Phoebe_Mei_coupon_AprToMay.csv")
+coupon <- data.table(coupon)
+
+head(coupon, 50)
+str(coupon)
+length(coupon$coupon_id) == length(unique(coupon$coupon_id))
+length(coupon$order_no) == length(unique(coupon$order_no))
+
+# preprocess
+couponCleaned <- copy(coupon)
+couponCleaned[, order_no := as.character(order_no)]
+couponCleaned[, update_time := substr(update_time, 1, 19)]
+couponCleaned = couponCleaned[couponCleaned$start_time > "2016-03-31"]
+couponCleaned = couponCleaned[couponCleaned$end_time < "2016-06-02"]
+couponCleaned[, use_time := ifelse(use_time == "null", NA, use_time)]
+couponCleaned[, use_time := as.POSIXct(use_time, format="%Y-%m-%d %H:%M:%S")]
+couponCleaned[, update_time := ifelse(update_time == "null", NA, update_time)]
+couponCleaned[, update_time := as.POSIXct(update_time, format="%Y-%m-%d %H:%M:%S")] # max 0613
+couponCleaned[couponCleaned$max_money == 0]$max_money = couponCleaned[couponCleaned$max_money == 0]$money
+
+couponCleaned[, coupon_effective_days := as.integer(end_time - start_time) / 24]
+couponCleaned[, c("X1", "code", "purpose", "has_rule", "rule_id", "create_time", "update_time", "is_del", "special_id", "activity_id", "activity_channel_id", "order_no", "basics_id", "pre_id", "kitchen_charge_percentage", "rule_id", "is_frozen", "frozen_reason", "risk_control_level", "from") := NULL]
+
+# type
+d = unique(couponCleaned[,c("type", "from", "worth_money", "reason", "title", 'sub_title', "content", "tag")])
+unique(couponCleaned[,c("is_used","money","worth_money","max_money")])
+
+summary(as.factor(couponCleaned[couponCleaned$is_used==0]$risk_control_level))
+summary(as.factor(couponCleaned[couponCleaned$is_used==1]$risk_control_level))
+
+couponCleaned = couponCleaned[, c("coupon_id","user_id","is_used","type","money","max_money","worth_money","reason","start_time","use_time","end_time","coupon_effective_days")]
+
+summary(couponCleaned)
+
+couponCleaned[couponCleaned$coupon_id==17842639]
+coupon[coupon$coupon_id==17842639]
+```
+
+```{r}
+# load
+orders <- data.table(read_csv("~/Desktop/SI 699/dataset_raw/Phoebe-Mei-OrderAprtoMay.csv"))
+unique(orders$city_id)
+
+head(orders)
+str(orders)
+length(orders$order_no) == length(unique(orders$order_no))
+length(orders$coupon_id) == length(unique(orders$coupon_id))
+
+# preprocess
+ordersCleaned <- copy(orders)
+ordersCleaned[is.na(ordersCleaned$coupon_id)]$coupon_id = "0"
+ordersCleaned[, order_no := as.character(order_no)]
+ordersCleaned[, coupon_id := as.integer(coupon_id)]
+ordersCleaned[, coupon_fee := as.integer(coupon_fee)]
+ordersCleaned[ordersCleaned$user_latitude == 0]$user_latitude = NA
+ordersCleaned[ordersCleaned$user_longitude == 0]$user_longitude = NA
+ordersCleaned[is.na(ordersCleaned$user_longitude) & ordersCleaned$distance == 0]$distance = NA
+ordersCleaned[ordersCleaned$distance > 55000]$distance = NA
+ordersCleaned[, update_time := ifelse(update_time == "null", NA, update_time)]
+ordersCleaned[, update_time := substr(update_time, 1, 19)]
+ordersCleaned[, app_version := substr(app_version, 1, 3)]
+ordersCleaned$app_version = as.factor(ordersCleaned$app_version)
+ordersCleaned[, update_time := as.POSIXct(update_time, format="%Y-%m-%d %H:%M:%S")]
+ordersCleaned[is.na(ordersCleaned$send_time)] # only one row
+ordersCleaned = ordersCleaned[!is.na(ordersCleaned$send_time)]
+
+ordersCleaned[, c("X1", "state", "state_train", "dishes", "update_time", "create_time", "raw_data", "dt", "ticket_id", "ticket_fee", "comment", "send_type", "refund_channel", "insure", "coupon_fee", "platform") := NULL]
+
+summary(as.factor(ordersCleaned[ordersCleaned$coupon_id=="0"]$platform))
+summary(as.factor(ordersCleaned[ordersCleaned$coupon_id!="0"]$platform))
+summary(ordersCleaned[!is.na(ordersCleaned$user_longitude)]$distance)
+
+names(ordersCleaned)[4] = "city_id_orders"
+
+ordersCleaned = ordersCleaned[, c("order_no", "user_id", "coupon_id", "kitchen_id", "city_id_orders", "distance", "user_longitude", "user_latitude", "app_version", "send_time")]
+
+summary(ordersCleaned)
+```
+
+```{r}
+nrow(couponCleaned[couponCleaned$is_used == 0]) + nrow(ordersCleaned)
+```
+
+
+```{r}
+dataset <- merge(ordersCleaned, couponCleaned, by=c("coupon_id", "user_id"), all = TRUE)
+dataset <- merge(dataset, userInfoCleaned, by=c("user_id"), all = TRUE)
+
+dataset = dataset[!((dataset$coupon_id != 0) & (is.na(dataset$start_time)))]
+
+summary(dataset)
+
+save(dataset, file = "preprocessed_dataset_180208.RData")
+write.csv(dataset, file='dataset_180208v2.csv', fileEncoding="UTF-8")
+```
+
+
+
+
+# appendix
+```{r}
+orders[(orders$coupon_id > 0) & (orders$distance > 0)][,c("user_id","coupon_id","distance")]
+```
+
+
+```{r}
+load("preprocessed_dataset_180208.RData")
+dataset = data.table(dataset)
+dataset[, is_used.y := NULL]
+names(dataset)[20] = "is_used"
+dataset$is_used = replace(dataset[,"is_used"], is.na(dataset[,"is_used"]), 0)
+dataset$user_coupon = apply(dataset[,c("user_id","coupon_id")], 1 , paste , collapse = "_" )
+```
+
+```{r}
+dataset_new = unique(dataset[,c("user_coupon", "user_id", "coupon_id", "is_used")])
+dataset_new = merge(dataset_new, unique(dataset[,c("user_coupon", "start_time")]), by="user_coupon")
+```
+
+
+```{r}
+# distance
+dataset_new = merge(dataset_new, unique(dataset[,c("user_coupon", "distance")]), by="user_coupon")
+```
+
+```{r}
+dataset[, oder_count_date=]
+```
+
